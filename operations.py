@@ -1,7 +1,11 @@
-
 import numpy as np
 import c3d
-
+'''
+description of the class below:
+* read function reads file by given path and returns the matrix of movements
+* write function creates new c3d file by given matrix of movements 
+* make_group function takes indexes of certain points and combines them into a group 
+'''
 class DataProcessor(object):
     
     def __init__(self, points_amount):
@@ -23,9 +27,13 @@ class DataProcessor(object):
             additional_matrix = np.zeros(dtype="float32", shape=(matrix.shape[0], self.points_amount, 2))
             
         writer = c3d.Writer()
-        # generator of tuples (coord_matrix,  analog)
+        # frames - generator of tuples (coord_matrix,  analog)
         frames = ((np.concatenate((matrix[i]*-1, additional_matrix[i]), axis=1), np.array([[]])) for i in range(len(matrix)))
         writer.add_frames(frames)
-
+        
         with open(path_to_write, 'wb') as h:
             writer.write(h)
+            
+    
+    def make_group(self, labels, matrix):
+        return matrix[:, labels, :]
