@@ -8,7 +8,7 @@ description of the class below:
 '''
 class DataProcessor(object):
     
-    def __init__(self, points_amount):
+    def __init__(self, points_amount=38):
         self.points_amount = points_amount
         
         
