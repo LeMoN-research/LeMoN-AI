@@ -44,17 +44,19 @@ description of the class below:
 * get_group function takes indexes of certain points and combines them into a group 
 '''
 # TODO: 2 dimensional array problem (in __init__) 
+'''
+* get_group function takes indexes of certain points and combines them into a group 
+'''    
+# TODO: 2 dimensional array problem (in __init__) 
 class Atomy(object):  
-    
     def __init__(self, frame, all_groups_labels):
         # iterating throw all groups labels and counting distances from each center to other points of the certain group
         centers = [self.get_group_center(self.get_group(labels, frame)) for labels in all_groups_labels]
-        self.distances = [self.get_dists_from_center(centers[i], self.get_group(all_groups_labels[i], frame))
-                          for i in range(len(centers))]
+        self.distances = np.array([self.get_dists_from_center(centers[i], self.get_group(all_groups_labels[i], frame))
+                          for i in range(len(centers))])
     
     def get_dist(self, point_1, point_2):
-        assert point_1.shape == point_2.shape
-        return np.sqrt(np.sum([np.sqr(point_2[i]-point_1[i]) for i in range(len(point_2))]))
+        return np.sqrt(np.sum((point_2-point_1)**2))
 
     
     def get_dists_from_center(self,center,group):
@@ -62,7 +64,7 @@ class Atomy(object):
 
     
     def get_group(self, labels, frame):
-        return frame[:, labels, :]
+        return frame[labels, :]
         
                 
     def get_group_center(self, group):
