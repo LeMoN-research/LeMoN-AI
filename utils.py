@@ -46,11 +46,20 @@ def get_spectrogram(y, sr):
     return log_S.T
 
 
-def iterate_minibatches(points, music, batch_size=100, block_size=15):
+def get_spects(music, block_size=20):
+    spects = []
+    for ind, mus in enumerate(music):
+        spects.append([])
+        for i in range(0, len(music)-block_size, 1):
+            spects[ind].append([get_spectrogram(x, 43680).T for x in mus[i:i+block_size]])
+    return np.array(spects)
+
+
+def iterate_minibatches(points, spects, batch_size=100, block_size=15):
     blocks_left = [int(p.shape[0]/block_size) for p in points]
     moves = np.array([positions_to_moves(x) for x in points])
     batch_count = 0
-    train_moves = []; pred_move = []; start_pos = []; out_music = []  
+    train_moves = []; pred_move = []; start_pos = []; out_spects = []  
     while np.any(blocks_left != 0):
         inst = np.random.choice(range(len(blocks_left)))
         start = -blocks_left[inst]*block_size
@@ -60,14 +69,14 @@ def iterate_minibatches(points, music, batch_size=100, block_size=15):
         pred_move.append(moves[inst][fin])
 
         start_pos.append(points[inst][start])
-        out_music.append(np.array([get_spectrogram(x, 43680).T for x in music[inst][start:fin]]))
+        out_spects.append(spects[inst][start:fin])
 
         blocks_left[inst] -= 1
 
         batch_count += 1
 
-        if batch_count == 100:
-            yield np.array(music), np.array(train_moves), np.array(start_pos), np.array(pred_move)
-            train_moves = []; pred_move = []; start_pos = []; out_music = []  
+        if batch_count == batch_size:
+            yield np.array(out_spects), np.array(train_moves), np.array(start_pos), np.array(pred_move)
+            train_moves = []; pred_move = []; start_pos = []; out_spects = []  
             batch_count = 0
             
