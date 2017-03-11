@@ -40,7 +40,7 @@ class DataProcessor(object):
         
 '''
 description of the class below:
-* get_group function takes indexes of certain points and combines them into a group 
+* make_group function takes indexes of certain points and combines them into a group 
 '''
 
 def make_group(labels, frame):
@@ -50,12 +50,19 @@ def make_group(labels, frame):
 def group_center(group):
     return np.mean(group, axis=0)
 
-
+'''
+incapsulates methods for estimating penalty to a frame of points for not looking humanlike
+- generates a metrics from training data
+- - average distance of points in a group from the group center
+- - average distance between two points at the body joint
+'''
 class Atomy(object):  
     
     def __init__(self, frames, all_groups_labels=groups, all_joints=joints, build_means=True):
         
+        #group labes - list of groups (another list of indexes of points in that group (i.e. left calf))
         self.all_groups_labels = all_groups_labels 
+        #joint labels - list of pairs (indexes of two points that should form a joint)
         self.all_joints = all_joints
         
         if build_means:
@@ -74,11 +81,12 @@ class Atomy(object):
     def dists_from_center(self,center,group):
         return [self.dist((center, x)) for x in group]
     
-    
+    #updates coordinates of group center, in order for them to correspond to currently evaluated frame
     def update_centers(self, frame):
         return [group_center(make_group(labels, frame)) for labels in self.all_groups_labels]
     
-    
+    #initialization - iterates over all training data once to estimate appropriate (humanlike) restrictions 
+    #on relative movements of points
     def compute_mean_matrices(self, frames):
         # center - group points
         length = len(frames)
@@ -93,7 +101,9 @@ class Atomy(object):
         
         return (np.array(group_distances)/length, np.array(joint_distances)/length)
     
-    
+    #updates lists of distances of points 
+    # - from the centers of their respective groups
+    # - of joints from each other
     def update_dists(self, frame):
         centers = self.update_centers(frame)
         group_dists = np.array([self.dists_from_center(centers[i], make_group(self.all_groups_labels[i], frame))
@@ -104,6 +114,7 @@ class Atomy(object):
         return (group_dists, joint_dists)
         
 
+    # calculates penalty based on deviation of point distances from mean point distances
     def main(self,frame):
         e = lambda l: [item for sublist in l for item in sublist]
         ms = lambda l: np.mean(np.square(l))
@@ -112,7 +123,12 @@ class Atomy(object):
         error = ms(e(group_dists-self.group_distances)) + ms(joint_dists-self.joint_distances)
         return error 
         
-
+'''
+beautification of data:
+- create additional points
+- - one point for the neck
+- fill in data on points that are missing from some of the frames
+'''
 class Preprocess(object):
     
     def __init__(self, frames):
@@ -123,7 +139,8 @@ class Preprocess(object):
     def main(self):
         return self.smooth(self.add_extra_points(self.frames))
 
-    
+    # smooth points trajectory - for cases when point completely dissapears
+    # fill in with data from previous frame
     def smooth(self, frames, verbose=False):
         zero_points = 0
         

@@ -2,6 +2,7 @@
 import theano
 import theano.tensor as T
 import lasagne
+import numpy as np
 
 MUSIC_SHAPE = (None, 20, 200)
 START_POSITION_SHAPE = (None, 38, 3)
