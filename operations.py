@@ -40,7 +40,7 @@ class DataProcessor(object):
         
 '''
 description of the class below:
-* get_group function takes indexes of certain points and combines them into a group 
+* make_group function takes indexes of certain points and combines them into a group 
 '''
 
 def make_group(labels, frame):
