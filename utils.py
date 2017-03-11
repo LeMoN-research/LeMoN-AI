@@ -27,15 +27,32 @@ def all_videos_to_sound(vid_dir="videos/"):
         get_sound_from_vid(vid_dir+file, "audio/")
 
 ### Dont use yet
-def get_data(c3d_path="c3d/", audio_path="audio/"):
-    c3ds = []; audio = []; names = []
-    for file in os.listdir(c3d_path):
-        with open(c3d_path+file, "rb") as handle:
-            reader = c3d.Reader(handle)
-            c3ds.append(np.array([x[1] for x in reader.read_frames()]))
-        if file.replace("-C3D.c3d", "") in [x.replace("-HD.wav", "") for x in os.listdir(audio_path)]:
-            audio.append(get_sound_from_wav(audio_path+file.replace("-C3D.c3d", "")+"-HD.wav"))
-        else:
-            audio.append(np.array([]))
-        names.append(file.replace("-C3D.c3d", ""))
-    return np.array(c3ds), np.array(audio), np.array(names)
+def get_data(npy_path):
+    data_matr = np.load(npy_path)
+    return np.array([np.array([y[0] for y in x]) for x in data_matr]),\
+        np.array([np.array([y[1] for y in x]) for x in data_matr])
+
+def iterate_mini_batches(points, music, batch_size=100, block_size=15):
+    blocks_left = [int(p.shape[0]/block_size) for p in points]
+    moves = np.array([positions_to_moves(x) for x in points])
+    batch_count = 0
+    batch = []
+    while np.any(blocks_left != 0):
+        inst = np.random.choice(range(len(blocks_left)))
+        start = -blocks_left[inst]*block_size
+        fin = -blocks_left[inst]*block_size+block_size            
+
+        train_moves = moves[inst][start:fin-1]
+        pred_move = moves[inst][fin]
+
+        start_pos = points[inst][start]
+
+        batch.append(np.array([music[inst][start:fin], train_moves, start_pos, pred_move]))
+        blocks_left[inst] -= 1
+
+        batch_count += 1
+
+        if batch_count == 100:
+            yield np.array(batch)
+            batch = []
+            batch_count = 0
