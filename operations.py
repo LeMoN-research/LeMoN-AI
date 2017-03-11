@@ -34,44 +34,52 @@ class DataProcessor(object):
         with open(path_to_write, 'wb') as h:
             writer.write(h)
             
-    
-    def make_group(self, labels, matrix):
-        return matrix[:, labels, :]
+            
+    def smooth(self,verbose=False):
+        zero_points = 0
+        frames = coords_x[:,:,:3]
+        for frame_index, frame  in enumerate(frames):
+            for point_index, point in enumerate(frame):
+                if point[0] == point[1] == point[2] == 0:
+                    frames[frame_index][point_index] = frames[frame_index-1][point_index]
+                    zero_points += 1
+
+        if verbose:
+            print zero_points
+
+        return frames
     
     
 '''
 description of the class below:
-* get_group function takes indexes of certain points and combines them into a group 
+* make_group function takes indexes of certain points and combines them into a group 
 '''
-# TODO: 2 dimensional array problem (in __init__) 
-'''
-* get_group function takes indexes of certain points and combines them into a group 
-'''    
 # TODO: 2 dimensional array problem (in __init__) 
 class Atomy(object):  
     def __init__(self, frame, all_groups_labels):
         # iterating throw all groups labels and counting distances from each center to other points of the certain group
-        centers = [self.get_group_center(self.get_group(labels, frame)) for labels in all_groups_labels]
-        self.distances = np.array([self.get_dists_from_center(centers[i], self.get_group(all_groups_labels[i], frame))
+        centers = [self.group_center(self.make_group(labels, frame)) for labels in all_groups_labels]
+        self.distances = np.array([self.dists_from_center(centers[i], self.make_group(all_groups_labels[i], frame))
                           for i in range(len(centers))])
     
-    def get_dist(self, point_1, point_2):
+    
+    def dist(self, point_1, point_2):
         return np.sqrt(np.sum((point_2-point_1)**2))
 
     
-    def get_dists_from_center(self,center,group):
+    def dists_from_center(self,center,group):
         return [self.get_dist(center, x) for x in group]
 
     
-    def get_group(self, labels, frame):
+    def make_group(self, labels, frame):
         return frame[labels, :]
         
                 
-    def get_group_center(self, group):
+    def group_center(self, group):
         return np.mean(group, axis=1)
     
     
-    def get_error(self, dist, epsilon_min=50, epsilon_max=5):
+    def error(self, dist, epsilon_min=50, epsilon_max=5):
         if dist > epsilon_max:
             return np.exp(dist - epsilon_max)
         
