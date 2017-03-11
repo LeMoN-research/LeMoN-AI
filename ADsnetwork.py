@@ -8,7 +8,7 @@ START_POSITION_SHAPE = (None, 38, 3)
 SHIFT_SHAPE = (None, 200, 38*3)
 
 
-class LeMoM_AI(object):
+class LeMoN_AI(object):
 
     def __init__(self, trainable=True):
         input_music_var = T.tensor3("Music input")
