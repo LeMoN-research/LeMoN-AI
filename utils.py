@@ -7,6 +7,15 @@ import matplotlib.pyplot as plt
 from scipy.io import wavfile
 from librosa import load, logamplitude
 from librosa.feature import melspectrogram
+from pathos.multiprocessing import ProcessingPool as Pool
+from joblib import Parallel, delayed
+
+
+def parallelization(func,massive,tq = True):
+    
+    num_cores = multiprocessing.cpu_count() # Число наших ядер
+    results = np.array(Parallel(n_jobs=num_cores)(delayed(func)(i) for i in massive))
+    return results
 
 
 def positions_to_moves(positions):
@@ -40,26 +49,18 @@ def get_data(npy_path):
         np.array([np.array([y[1] for y in x]) for x in data_matr])
 
     
-def get_spectrogram(y, sr):
+def get_spectrogram(y, sr=43680):
     S = melspectrogram(y, sr=sr, n_mels=200)
     log_S = logamplitude(S, ref_power=np.max)
-    return log_S.T
+    return log_S
 
 
-def get_spects(music, block_size=20):
-    spects = []
-    for ind, mus in enumerate(music):
-        spects.append([])
-        for i in range(0, len(music)-block_size, 1):
-            spects[ind].append([get_spectrogram(x, 43680).T for x in mus[i:i+block_size]])
-    return np.array(spects)
-
-
-def iterate_minibatches(points, spects, batch_size=100, block_size=15):
+def iterate_minibatches(points, music, batch_size=100, block_size=20):
+    p = Pool(32)
     blocks_left = [int(p.shape[0]/block_size) for p in points]
     moves = np.array([positions_to_moves(x) for x in points])
     batch_count = 0
-    train_moves = []; pred_move = []; start_pos = []; out_spects = []  
+    train_moves = []; pred_move = []; start_pos = []; out_music = []  
     while np.any(blocks_left != 0):
         inst = np.random.choice(range(len(blocks_left)))
         start = -blocks_left[inst]*block_size
@@ -69,14 +70,15 @@ def iterate_minibatches(points, spects, batch_size=100, block_size=15):
         pred_move.append(moves[inst][fin])
 
         start_pos.append(points[inst][start])
-        out_spects.append(spects[inst][start:fin])
+        out_music.append(np.array(p.map(get_spectrogram,
+                                        [x for x in music[inst][start:fin]]))
+)
 
         blocks_left[inst] -= 1
 
         batch_count += 1
 
         if batch_count == batch_size:
-            yield np.array(out_spects), np.array(train_moves), np.array(start_pos), np.array(pred_move)
-            train_moves = []; pred_move = []; start_pos = []; out_spects = []  
+            yield np.array(out_music), np.array(train_moves), np.array(start_pos), np.array(pred_move)
+            train_moves = []; pred_move = []; start_pos = []; out_music = []  
             batch_count = 0
-            
