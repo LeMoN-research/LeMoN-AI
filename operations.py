@@ -120,9 +120,12 @@ class Atomy(object):
         ms = lambda l: np.mean(np.square(l))
         group_dists, joint_dists = self.update_dists(frame)
         # че непонятно!? >:c
-        error = ms(e(group_dists-self.group_distances)) + ms(joint_dists-self.joint_distances)
+        error = ms(e(group_dists-self.group_distances)) + np.mean(joint_dists-self.joint_distances)
         return error 
         
+        
+    def frames_error(self, frames):
+        return np.mean(np.array([self.main(frame) for frame in frames]))
 '''
 beautification of data:
 - create additional points
