@@ -67,7 +67,7 @@ def iterate_minibatches(points, music, batch_size=100, block_size=15):
         batch_count += 1
 
         if batch_count == 100:
-            yield np.array(music), np.array(train_moves), np.array(start_pos), np.array(pred_move)
+            yield np.array(out_music), np.array(train_moves), np.array(start_pos), np.array(pred_move)
             train_moves = []; pred_move = []; start_pos = []; out_music = []  
             batch_count = 0
             
