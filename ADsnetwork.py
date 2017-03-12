@@ -4,14 +4,14 @@ import theano.tensor as T
 import lasagne
 import numpy as np
 
-MUSIC_SHAPE = (None, 20, 200)
+MUSIC_SHAPE = (None, 4, 200)
 START_POSITION_SHAPE = (None, 38, 3)
 SHIFT_SHAPE = (None, 19, 38*3)
 
 
 class LeMoN_AI(object):
 
-    def __init__(self, trainable=True):
+    def __init__(self, trainable=True, prod=False):
         input_music_var = T.tensor3("Music input")
         input_shift_var = T.tensor3("Shift input")
 
@@ -19,22 +19,23 @@ class LeMoN_AI(object):
         delta_mov_var = T.matrix("Delta moving")
         
         music_input = lasagne.layers.InputLayer(shape=MUSIC_SHAPE, input_var=input_music_var)
+        music_input = lasagne.layers.BatchNormLayer(music_input)
         music_dims = lasagne.layers.DimshuffleLayer(music_input, (0, 2, 1))
-        print("Music conv: ", music_dims.output_shape)
-        music_conv = lasagne.layers.Conv1DLayer(music_dims, 256, 10, name="Music")
+        music_conv = lasagne.layers.Conv1DLayer(music_dims, 256, 2, name="Music")
         music_conv = lasagne.layers.batch_norm(music_conv)
         # music_pool = lasagne.layers.GlobalPoolLayer(music_conv, T.max)
         print("Music conv: ", music_conv.output_shape)
 
         shift_input = lasagne.layers.InputLayer(shape=SHIFT_SHAPE, input_var=input_shift_var)
+        shift_input = lasagne.layers.BatchNormLayer(shift_input)
         shift_dims = lasagne.layers.DimshuffleLayer(shift_input, (0, 2, 1))
-        print("Shift conv: ", shift_dims.output_shape)
         shift_conv = lasagne.layers.Conv1DLayer(shift_dims, 256, 10, name="shift_conv")
         shift_conv = lasagne.layers.batch_norm(shift_conv)
         # shift_pool = lasagne.layers.GlobalPoolLayer(music_conv, T.max)
         print("Shift conv: ", shift_conv.output_shape)
 
         position_input = lasagne.layers.InputLayer(shape=START_POSITION_SHAPE, input_var=input_position_var)
+        position_input = lasagne.layers.BatchNormLayer(position_input)
         position_dims = lasagne.layers.DimshuffleLayer(position_input, (0, 2, 1))
         position_conv = lasagne.layers.Conv1DLayer(position_dims, 128, 2, name="Conv0")
         position_conv = lasagne.layers.batch_norm(position_conv)
@@ -43,6 +44,7 @@ class LeMoN_AI(object):
         position_conv = lasagne.layers.batch_norm(position_conv)
         position_pool = lasagne.layers.GlobalPoolLayer(position_conv, pool_function=T.max, name="Gpool")
         print("Position pool: ", position_pool.output_shape)
+
 
         lstm_music = lasagne.layers.LSTMLayer(music_conv, 512, only_return_final=True, name="Music LSTM")
         lstm_music = lasagne.layers.batch_norm(lstm_music)
@@ -54,7 +56,7 @@ class LeMoN_AI(object):
 
         conc = lasagne.layers.ConcatLayer([lstm_music, lstm_shift], axis=1)
         print("Conc: ", conc.output_shape)
-        dense_0 = lasagne.layers.DenseLayer(conc, 256, nonlinearity=lasagne.nonlinearities.sigmoid, name="Dense1")
+        dense_0 = lasagne.layers.DenseLayer(conc, 256, nonlinearity=lasagne.nonlinearities.linear, name="Dense1")
         output = lasagne.layers.DenseLayer(dense_0, 38*3, nonlinearity=lasagne.nonlinearities.linear, name="Conv2")
         print("Output: ", output.output_shape)
 
@@ -62,14 +64,15 @@ class LeMoN_AI(object):
         self.output = output
         reshape_output = lasagne.layers.ReshapeLayer(output, (-1, 38, 3))
         out = lasagne.layers.get_output(output)
-
-        self._predict = theano.function([input_music_var, input_shift_var,
-            input_position_var], out, allow_input_downcast=True)
+        
+        if prod:
+            self._predict = theano.function([input_music_var, input_shift_var,
+                input_position_var], out, allow_input_downcast=True)
 
         if trainable:
             weights = lasagne.layers.get_all_params(output, trainable=True)
             loss = lasagne.objectives.squared_error(out, delta_mov_var).mean()
-            update = lasagne.updates.adam(loss, weights)
+            update = lasagne.updates.adam(loss, weights, learning_rate=0.0001)
 
             self._train = theano.function([input_music_var, input_shift_var,
                 input_position_var, delta_mov_var], loss, updates=update,

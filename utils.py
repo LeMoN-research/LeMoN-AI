@@ -73,22 +73,21 @@ def iterate_minibatches(points, music, batch_size=100, block_size=20):
         inst = np.random.choice(range(len(blocks_left)))
         start = -blocks_left[inst]*block_size
         fin = start+block_size            
-
-        train_moves.append(moves[inst][start:fin-1])
-        pred_move.append(moves[inst][fin])
-
-        start_pos.append(points[inst][start])
         
-        our_spec = np.load("spectr/{}.{}.spec".format(inst, blocks_total[inst]-blocks_left[inst]))
-        #out_music.append(np.array(p.map(get_spectrogram,
-        #                                [x for x in music[inst][start:fin]]))
-        out_spec.append(our_spec)
+        if fin < moves.shape[0]:
+            train_moves.append(moves[inst][start:fin-1])
+
+            pred_move.append(moves[inst][fin])
+
+            start_pos.append(points[inst][start])
+
+            our_spec = np.load("spectr/{}.{}.spec".format(inst, blocks_total[inst]-blocks_left[inst]))
+            out_spec.append(our_spec)
+  
 
         blocks_left[inst] -= 1
 
-        batch_count += 1
 
-        if batch_count == batch_size:
+        if len(train_moves) == batch_size:
             yield np.array(out_spec), np.array(train_moves), np.array(start_pos), np.array(pred_move)
             train_moves = []; pred_move = []; start_pos = []; out_spec = []  
-            batch_count = 0
