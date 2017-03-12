@@ -55,12 +55,20 @@ def get_spectrogram(y, sr=43680):
     return log_S
 
 
+def get_spectrs(music, block_size=20, dump_path="spectr/"):
+    for ind, mus in enumerate(music):
+        for i in range(0, len(music)-block_size, 1):
+            spec = get_spectrogram(mus[i:i+block_size].reshape(-1), 43680).T 
+            spec.dump("{}{}.{}.spec".format(dump_path, ind, i))
+            
+            
 def iterate_minibatches(points, music, batch_size=100, block_size=20):
     p = Pool(32)
     blocks_left = [int(p.shape[0]/block_size) for p in points]
+    blocks_total = blocks_left
     moves = np.array([positions_to_moves(x) for x in points])
     batch_count = 0
-    train_moves = []; pred_move = []; start_pos = []; out_music = []  
+    train_moves = []; pred_move = []; start_pos = []; out_spec = []  
     while np.any(blocks_left != 0):
         inst = np.random.choice(range(len(blocks_left)))
         start = -blocks_left[inst]*block_size
@@ -70,15 +78,18 @@ def iterate_minibatches(points, music, batch_size=100, block_size=20):
         pred_move.append(moves[inst][fin])
 
         start_pos.append(points[inst][start])
-        out_music.append(np.array(p.map(get_spectrogram,
-                                        [x for x in music[inst][start:fin]]))
-)
+        
+        our_spec = np.load("spectr/{}.{}.spec".format(inst, blocks_total[inst]-blocks_left[inst])
+        #out_music.append(np.array(p.map(get_spectrogram,
+        #                                [x for x in music[inst][start:fin]]))
+                           
+        out_spec.append(our_spec)
 
         blocks_left[inst] -= 1
 
         batch_count += 1
 
         if batch_count == batch_size:
-            yield np.array(out_music), np.array(train_moves), np.array(start_pos), np.array(pred_move)
-            train_moves = []; pred_move = []; start_pos = []; out_music = []  
+            yield np.array(out_spec), np.array(train_moves), np.array(start_pos), np.array(pred_move)
+            train_moves = []; pred_move = []; start_pos = []; out_spec = []  
             batch_count = 0
