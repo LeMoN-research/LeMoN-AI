@@ -79,10 +79,9 @@ def iterate_minibatches(points, music, batch_size=100, block_size=20):
 
         start_pos.append(points[inst][start])
         
-        our_spec = np.load("spectr/{}.{}.spec".format(inst, blocks_total[inst]-blocks_left[inst])
+        our_spec = np.load("spectr/{}.{}.spec".format(inst, blocks_total[inst]-blocks_left[inst]))
         #out_music.append(np.array(p.map(get_spectrogram,
         #                                [x for x in music[inst][start:fin]]))
-                           
         out_spec.append(our_spec)
 
         blocks_left[inst] -= 1
