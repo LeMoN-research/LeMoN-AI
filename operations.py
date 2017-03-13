@@ -124,7 +124,7 @@ class Atomy(object):
         
         
     def frames_error(self, frames):
-        return np.mean(np.array([self.main(frame) for frame in frames]))
+        return np.mean(np.array([self.compute_extra_error(frame) for frame in frames]))
 '''
 beautification of data:
 - create additional points
