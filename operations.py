@@ -164,28 +164,6 @@ class Preprocess(object):
         return new_frames
     
     
-    def extrapolate(self, frames,deg=3):
-        assert frames.shape[1] == 3 and np.ndim(frames) == 2
-        # get polynomial coefficients
-        poly_coef = lambda a, b: np.polyfit(a,b,deg)
-        # get polynomial itself
-        polynomial = lambda coefs: np.poly1d(coefs)
-        # make all column combinations
-        col_indexes = [0,1,2]
-        combs = list(itertools.combinations(col_indexes,2))
-        combs.extend(map(lambda x: tuple(reversed(x)), combs))
-        combs.sort(key=lambda x: x[1])
-
-        all_coefs = [[],[],[]]
-        for i in range(3):
-            for comb in combs[i*2:i*2+2]: # divide combinations to three parts of two elements
-                all_coefs[i].append(poly_coef(frames[comb[0]], frames[comb[1]]))
-
-        final_coefs = map(sum, all_coefs)
-
-        return map(polynomial,final_coefs)
-    
-    
     def extrapolate(self, frame, (i,j), deg=10):
         assert frame.shape[1] == 3 and np.ndim(frame) == 2
         # get polynomial coefficients
