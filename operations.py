@@ -119,7 +119,6 @@ class Atomy(object):
         e = lambda l: [item for sublist in l for item in sublist]
         ms = lambda l: np.mean(np.square(l))
         group_dists, joint_dists = self.update_dists(frame)
-        # че непонятно!? >:c
         error = ms(e(group_dists-self.group_distances)) + np.mean(joint_dists-self.joint_distances)
         return error 
         

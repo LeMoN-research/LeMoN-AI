@@ -72,7 +72,7 @@ class LeMoN_AI(object):
         if trainable:
             weights = lasagne.layers.get_all_params(output, trainable=True)
             loss = lasagne.objectives.squared_error(out, delta_mov_var).mean()
-            update = lasagne.updates.adam(loss, weights, learning_rate=0.0001)
+            update = lasagne.updates.adam(loss, weights, learning_rate=0.00001)
 
             self._train = theano.function([input_music_var, input_shift_var,
                 input_position_var, delta_mov_var], loss, updates=update,
@@ -84,7 +84,7 @@ class LeMoN_AI(object):
             shifts :2D tensor(time, schifts)
             start_position :vector
             """
-        return self._predict([music], [shifts], [start_position])
+        return self._predict(music, shifts, start_position)
 
     def train(self, music, shifts, start_position, true_delta):
         """
@@ -98,4 +98,4 @@ class LeMoN_AI(object):
         np.save(file_name, lasagne.layers.get_all_param_values(self.output))
         
     def load(self, file_name="weights.npy"):
-        lasage.layers.set_all_param_values(self.output, np.load(file_name))
+        lasagne.layers.set_all_param_values(self.output, np.load(file_name))
