@@ -3,24 +3,24 @@ import c3d
 from configuration import *
 from tqdm import tqdm
 import pickle as pkl
-'''
-description of the class below:
-* read function reads file by given path and returns the matrix of movements
-* write function creates new c3d file by given matrix of movements 
-* make_group function takes indexes of certain points and combines them into a group 
-'''
+
+
 class DataProcessor(object):
-    
+    """
+    description of the class:
+    * read function reads file by given path and returns the matrix of movements
+    * write function creates new c3d file by given matrix of movements
+    * make_group function takes indexes of certain points and combines them into a group
+    """
+
     def __init__(self, points_amount=38):
         self.points_amount = points_amount
-        
-        
+
     def read(self, path_to_read):
         reader = c3d.Reader(open(path_to_read, 'rb'))
         coords = np.array(map(lambda x: x[1], list(reader.read_frames())))
-        return coords[:,:,:3]
-        
-        
+        return coords[:, :, :3]
+
     def write(self, path_to_write, matrix, additional_matrix=None):
         assert np.ndim(matrix)== 3
         assert matrix.shape[2] == 3 and matrix.shape[1] == self.points_amount
@@ -36,33 +36,30 @@ class DataProcessor(object):
         
         with open(path_to_write, 'wb') as h:
             writer.write(h)
-        
-        
-'''
-description of the class below:
-* make_group function takes indexes of certain points and combines them into a group 
-'''
+
 
 def make_group(labels, frame):
+    # make_group function takes indexes of certain points and combines them into a group
     return frame[labels, :]
 
 
 def group_center(group):
     return np.mean(group, axis=0)
 
-'''
-incapsulates methods for estimating penalty to a frame of points for not looking humanlike
-- generates a metrics from training data
-- - average distance of points in a group from the group center
-- - average distance between two points at the body joint
-'''
-class Atomy(object):  
-    
+
+class Atomy(object):
+    """
+    incapsulates methods for estimating penalty to a frame of points for not looking humanlike
+    - generates a metrics from training data
+    - - average distance of points in a group from the group center
+    - - average distance between two points at the body joint
+    """
+
     def __init__(self, frames, all_groups_labels=groups, all_joints=joints, build_means=True):
         
-        #group labes - list of groups (another list of indexes of points in that group (i.e. left calf))
+        # group labels - list of groups (another list of indexes of points in that group (i.e. left calf))
         self.all_groups_labels = all_groups_labels 
-        #joint labels - list of pairs (indexes of two points that should form a joint)
+        # joint labels - list of pairs (indexes of two points that should form a joint)
         self.all_joints = all_joints
         
         if build_means:
@@ -72,21 +69,19 @@ class Atomy(object):
         else:
             self.group_distances, self.joint_distances = pkl.load(open('mean_matrices.pkl','rb'))
 
-    
     def dist(self, (point_1, point_2)):
         assert len(point_1) == len(point_2) == 3, 'incorrect shapes '+ str(point_1.shape)+' and '+str(point_2.shape)
         return np.sqrt(np.sum((point_2-point_1)**2))
 
-    
     def dists_from_center(self,center,group):
         return [self.dist((center, x)) for x in group]
-    
-    #updates coordinates of group center, in order for them to correspond to currently evaluated frame
+
     def update_centers(self, frame):
+        # updates coordinates of group center, in order for them to correspond to currently evaluated frame
         return [group_center(make_group(labels, frame)) for labels in self.all_groups_labels]
     
-    #initialization - iterates over all training data once to estimate appropriate (humanlike) restrictions 
-    #on relative movements of points
+    # initialization - iterates over all training data once to estimate appropriate (humanlike) restrictions
+    # on relative movements of points
     def compute_mean_matrices(self, frames):
         # center - group points
         length = len(frames)
@@ -99,9 +94,9 @@ class Atomy(object):
             joint_distances = [joint_distances[i] + joint_dists[i] for i in range(len(self.all_joints))]
             group_distances = [group_distances[i] + group_dists[i] for i in range(len(self.all_groups_labels))]
         
-        return (np.array(group_distances)/length, np.array(joint_distances)/length)
+        return tuple(np.array(group_distances)/length, np.array(joint_distances)/length)
     
-    #updates lists of distances of points 
+    # updates lists of distances of points
     # - from the centers of their respective groups
     # - of joints from each other
     def update_dists(self, frame):
@@ -111,8 +106,7 @@ class Atomy(object):
         
         joint_dists = np.array(map(self.dist, map(lambda x: make_group(x,frame), self.all_joints)))
         
-        return (group_dists, joint_dists)
-        
+        return tuple(group_dists, joint_dists)
 
     # calculates penalty based on deviation of point distances from mean point distances
     def compute_extra_error(self,frame):
@@ -121,23 +115,23 @@ class Atomy(object):
         group_dists, joint_dists = self.update_dists(frame)
         error = ms(e(group_dists-self.group_distances)) + np.mean(joint_dists-self.joint_distances)
         return error 
-        
-        
+
     def frames_error(self, frames):
         return np.mean(np.array([self.compute_extra_error(frame) for frame in frames]))
-'''
-beautification of data:
-- create additional points
-- - one point for the neck
-- fill in data on points that are missing from some of the frames
-'''
+
+
 class Preprocess(object):
-    
+    """
+    beautification of data:
+    - create additional points
+    - - one point for the neck
+    - fill in data on points that are missing from some of the frames
+    """
+
     def __init__(self, frames):
         assert np.ndim(frames) == 3 and frames.shape[2] == 3
         self.frames = frames
-        
-        
+
     def main(self):
         return self.smooth(self.add_extra_points(self.frames))
 
@@ -156,14 +150,12 @@ class Preprocess(object):
             print zero_points
 
         return frames
-    
-    
+
     def add_extra_points(self,frames):
         extra_points = [group_center(make_group([11,18],frame)) for frame in frames]
         new_frames = np.array([np.concatenate((frames[i],np.array([extra_points[i]]))) for i in range(len(frames))])
         return new_frames
-    
-    
+
     def extrapolate(self, frame, (i,j), deg=10):
         assert frame.shape[1] == 3 and np.ndim(frame) == 2
         # get polynomial coefficients
@@ -184,8 +176,7 @@ class Preprocess(object):
             funcs.append(p)
 
         return np.array([get_values(funcs[0]), get_values(funcs[1]), get_values(funcs[2])])  
-    
-    
+
     def moves_to_position(self, start_pos, matrix_of_movements):
         assert np.ndim(matrix_of_movements) == 3
         assert matrix_of_movements.shape[2] == 3
