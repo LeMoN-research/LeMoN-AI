@@ -48,9 +48,9 @@ def group_center(group):
     return np.mean(group, axis=0)
 
 
-class Atomy(object):
+class Skeleton(object):
     """
-    incapsulates methods for estimating penalty to a frame of points for not looking humanlike
+    encapsulates methods for estimating penalty to a frame of points for not looking humanlike
     - generates a metrics from training data
     - - average distance of points in a group from the group center
     - - average distance between two points at the body joint
@@ -137,8 +137,9 @@ class Preprocess(object):
     def main(self):
         return self.smooth(self.add_extra_points(self.frames))
 
-    # smooth points trajectory - for cases when point completely dissapears
+    # smooth points trajectory - for cases when point completely disappears
     # fill in with data from previous frame
+    # TODO rewrite smooth function (include extrapolating)
     @staticmethod
     def smooth(frames, verbose=False):
         zero_points = 0
@@ -161,7 +162,7 @@ class Preprocess(object):
         return new_frames
 
     @staticmethod
-    def extrapolate(self, frame, (i, j), deg=10):
+    def extrapolate(frame, (i, j), deg=10):
         assert frame.shape[1] == 3 and np.ndim(frame) == 2
         # get polynomial coefficients
         poly_coef = lambda a, b: np.polyfit(a, b, deg)
