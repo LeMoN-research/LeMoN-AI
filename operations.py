@@ -16,13 +16,14 @@ class DataProcessor(object):
     def __init__(self, points_amount=38):
         self.points_amount = points_amount
 
-    def read(self, path_to_read):
+    @staticmethod
+    def read(path_to_read):
         reader = c3d.Reader(open(path_to_read, 'rb'))
-        coords = np.array(map(lambda x: x[1], list(reader.read_frames())))
-        return coords[:, :, :3]
+        coordinates = np.array(map(lambda x: x[1], list(reader.read_frames())))
+        return coordinates[:, :, :3]
 
     def write(self, path_to_write, matrix, additional_matrix=None):
-        assert np.ndim(matrix)== 3
+        assert np.ndim(matrix) == 3
         assert matrix.shape[2] == 3 and matrix.shape[1] == self.points_amount
         
         if additional_matrix == None:
@@ -64,16 +65,17 @@ class Atomy(object):
         
         if build_means:
             self.group_distances, self.joint_distances = self.compute_mean_matrices(frames)
-            pkl.dump((self.group_distances, self.joint_distances), open('mean_matrices.pkl','wb'))
+            pkl.dump((self.group_distances, self.joint_distances), open('mean_matrices.pkl', 'wb'))
             
         else:
-            self.group_distances, self.joint_distances = pkl.load(open('mean_matrices.pkl','rb'))
+            self.group_distances, self.joint_distances = pkl.load(open('mean_matrices.pkl', 'rb'))
 
-    def dist(self, (point_1, point_2)):
-        assert len(point_1) == len(point_2) == 3, 'incorrect shapes '+ str(point_1.shape)+' and '+str(point_2.shape)
+    @staticmethod
+    def dist((point_1, point_2)):
+        assert len(point_1) == len(point_2) == 3, 'incorrect shapes ' + str(point_1.shape) + ' and '+str(point_2.shape)
         return np.sqrt(np.sum((point_2-point_1)**2))
 
-    def dists_from_center(self,center,group):
+    def dists_from_center(self, center, group):
         return [self.dist((center, x)) for x in group]
 
     def update_centers(self, frame):
@@ -109,7 +111,7 @@ class Atomy(object):
         return tuple(group_dists, joint_dists)
 
     # calculates penalty based on deviation of point distances from mean point distances
-    def compute_extra_error(self,frame):
+    def compute_extra_error(self, frame):
         e = lambda l: [item for sublist in l for item in sublist]
         ms = lambda l: np.mean(np.square(l))
         group_dists, joint_dists = self.update_dists(frame)
@@ -137,10 +139,11 @@ class Preprocess(object):
 
     # smooth points trajectory - for cases when point completely dissapears
     # fill in with data from previous frame
-    def smooth(self, frames, verbose=False):
+    @staticmethod
+    def smooth(frames, verbose=False):
         zero_points = 0
         
-        for frame_index, frame  in enumerate(frames):
+        for frame_index, frame in enumerate(frames):
             for point_index, point in enumerate(frame):
                 if point[0] == point[1] == point[2] == 0:
                     frames[frame_index][point_index] = frames[frame_index-1][point_index]
@@ -151,33 +154,36 @@ class Preprocess(object):
 
         return frames
 
-    def add_extra_points(self,frames):
-        extra_points = [group_center(make_group([11,18],frame)) for frame in frames]
-        new_frames = np.array([np.concatenate((frames[i],np.array([extra_points[i]]))) for i in range(len(frames))])
+    @staticmethod
+    def add_extra_points(frames):
+        extra_points = [group_center(make_group([11, 18], frame)) for frame in frames]
+        new_frames = np.array([np.concatenate((frames[i], np.array([extra_points[i]]))) for i in range(len(frames))])
         return new_frames
 
-    def extrapolate(self, frame, (i,j), deg=10):
+    @staticmethod
+    def extrapolate(self, frame, (i, j), deg=10):
         assert frame.shape[1] == 3 and np.ndim(frame) == 2
         # get polynomial coefficients
-        poly_coef = lambda a, b: np.polyfit(a,b,deg)
+        poly_coef = lambda a, b: np.polyfit(a, b, deg)
         # get polynomial itself
         polynomial = lambda coefs: np.poly1d(coefs)
 
-        get_values = lambda func: [func(k) for k in range(i,j)]
+        get_values = lambda func: [func(k) for k in range(i, j)]
 
         length = frame.shape[0] + j - i
-        indexes = np.concatenate((np.array(range(0, i)), np.array(range(j,length))))
+        indexes = np.concatenate((np.array(range(0, i)), np.array(range(j, length))))
 
         funcs = []
 
         for m in range(3):
-            column = frame[:,m]
+            column = frame[:, m]
             p = polynomial(poly_coef(indexes,column))
             funcs.append(p)
 
         return np.array([get_values(funcs[0]), get_values(funcs[1]), get_values(funcs[2])])  
 
-    def moves_to_position(self, start_pos, matrix_of_movements):
+    @staticmethod
+    def moves_to_position(start_pos, matrix_of_movements):
         assert np.ndim(matrix_of_movements) == 3
         assert matrix_of_movements.shape[2] == 3
 
