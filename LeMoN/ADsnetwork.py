@@ -1,4 +1,4 @@
-#get_ipython().magic('env THEANO_FLAGS=device=gpu0,floatX=float32')#
+# get_ipython().magic('env THEANO_FLAGS=device=gpu0,floatX=float32')
 import theano
 import theano.tensor as T
 import lasagne
@@ -91,7 +91,7 @@ class LeMoN_AI(object):
             music :3D tensor(batch, time, chan)
             shifts :3D tensor(batch, time, schifts)
             start_position :matrix(batch, coord)
-            """
+        """
         return self._train(music, shifts, start_position, true_delta)
         
     def save(self, file_name="weights.npy"):
