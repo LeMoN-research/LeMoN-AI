@@ -1,13 +1,17 @@
-from ADsnetwork import LeMoN_AI
+from LeMoN.ADsnetwork import LeMoN_AI
 from time import time
 from prefetch_generator import BackgroundGenerator
 from telebot import TeleBot
-from utils import get_data, iterate_minibatches
+from LeMTools.train_utils import get_data, iterate_minibatches
 import config
 
 bot = TeleBot(config.telegram_token)
+
+
 def send_log(message):
     bot.send_message(config.channel, message)
+
+
 send_log("Создаем модель...")
 model = LeMoN_AI()
 send_log("Грузим данные...")
@@ -17,6 +21,7 @@ epoch = 100
 batch_size = 1000
 time_leght = 20
 """)
+
 epoch = 100
 batch_size = 1000
 time_leght = 20

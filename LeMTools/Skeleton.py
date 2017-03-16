@@ -1,6 +1,8 @@
 import numpy as np
 import pickle as pkl
 from tqdm import tqdm
+from configuration import *
+
 
 def make_group(labels, frame):
     # make_group function takes indexes of certain points and combines them into a group
@@ -14,9 +16,9 @@ def group_center(group):
 class Skeleton(object):
     """
     encapsulates methods for estimating penalty to a frame of points for not looking humanlike
-    - generates a metrics from training data
-    - - average distance of points in a group from the group center
-    - - average distance between two points at the body joint
+    :generates a metrics from training data
+        :average distance of points in a group from the group center
+        :average distance between two points at the body joint
     """
 
     def __init__(self, frames, all_groups_labels=groups, all_joints=joints, build_means=True):
@@ -66,10 +68,10 @@ class Skeleton(object):
     # - of joints from each other
     def update_dists(self, frame):
         centers = self.update_centers(frame)
-        group_dists = np.array([self.dists_from_center(centers[i], make_group(self.all_groups_labels[i], frame))
-                          for i in range(len(centers))])
+        group_dists = np.array([self.dists_from_center(centers[i], make_group(self.all_groups_labels[i], frame))\
+                                for i in range(len(centers))])
         
-        joint_dists = np.array(map(self.dist, map(lambda x: make_group(x,frame), self.all_joints)))
+        joint_dists = np.array(map(self.dist, map(lambda x: make_group(x, frame), self.all_joints)))
         
         return tuple(group_dists, joint_dists)
 
