@@ -8,13 +8,10 @@ import config
 bot = TeleBot(config.telegram_token)
 def send_log(message):
     bot.send_message(config.channel, message)
-
 send_log("Создаем модель...")
 model = LeMoN_AI()
-
 send_log("Грузим данные...")
 points, music = get_data("ok_dat.npy")
-
 send_log("""Настраиваем параметры:
 epoch = 100
 batch_size = 1000
@@ -23,18 +20,15 @@ time_leght = 20
 epoch = 100
 batch_size = 1000
 time_leght = 20
-
 iterate_mini_set = {
     "points": points,
     "music": music,
     "batch_size": batch_size,
     "block_size": time_leght
 }
-
 message = """Эпоха: {}
 Время: {} H
 Средняя ошибка(square error): {}"""
-
 send_log("Тренируемся")
 try:
     for epoch in range(1, epoch+1):
@@ -53,5 +47,4 @@ try:
             send_log("Error when save: {}".format(e))
 except Exception as e:
     send_log("Error: {}".format(e))
-
 send_log("!!!Готово!!!")
