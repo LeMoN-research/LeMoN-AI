@@ -1,8 +1,8 @@
-from LeMoN.ADsnetwork import LeMoN_AI
+from model.network import LeMoN
 from time import time
 from prefetch_generator import BackgroundGenerator
 from telebot import TeleBot
-from LeMTools.train_utils import get_data, iterate_minibatches
+from tools.train_utils import get_data, iterate_minibatches
 import config
 
 bot = TeleBot(config.telegram_token)
@@ -13,7 +13,7 @@ def send_log(message):
 
 
 send_log("Создаем модель...")
-model = LeMoN_AI()
+model = LeMoN()
 send_log("Грузим данные...")
 points, music = get_data("ok_dat.npy")
 send_log("""Настраиваем параметры:
@@ -24,12 +24,12 @@ time_leght = 20
 
 epoch = 100
 batch_size = 1000
-time_leght = 20
+time_length = 20
 iterate_mini_set = {
     "points": points,
     "music": music,
     "batch_size": batch_size,
-    "block_size": time_leght
+    "block_size": time_length
 }
 message = """Эпоха: {}
 Время: {} H
@@ -41,7 +41,8 @@ try:
         loss = 0
         st = time()
         for music_, shift, stp, delta_mov in BackgroundGenerator(iterate_minibatches(**iterate_mini_set)):
-            loss += model.train(music_.reshape((-1, time_leght, 200)), shift.reshape((-1, 19, 38*3)), stp, delta_mov.reshape((-1, 38*3)))
+            loss += model.train(music_.reshape((-1, time_length, 200)), shift.reshape((-1, 19, 38*3)),
+                                stp, delta_mov.reshape((-1, 38*3)))
             n += 1
         t = time() - st
         send_log(message.format(epoch, t, loss/(n*1.)))

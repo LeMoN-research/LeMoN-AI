@@ -2,14 +2,13 @@ import numpy as np
 import c3d
 import subprocess
 import os
-from librosa import *
-import librosa
+from librosa import load, logamplitude
+from librosa.feature import melspectrogram
 
 
 def moves_to_position(start_pos, matrix_of_movements):
     assert np.ndim(matrix_of_movements) == 3
     assert matrix_of_movements.shape[2] == 3
-
     return start_pos + np.sum(matrix_of_movements, axis=0)
 
 
@@ -22,13 +21,13 @@ class C3DProcessor(object):
     """
     Description:
     :read/write c3d data
-    :make this data as beautiful as Cara Delevingne (More detailed inforamtion bellow)
+    :make this data as beautiful as Cara Delevingne (More detailed information bellow)
     """
 
     def __init__(self, points_amount=38, frames=None):
         self.points_amount = points_amount
         self.frames = frames
-    
+
     # R/W operations
     @staticmethod
     def read(path_to_read):
@@ -39,47 +38,94 @@ class C3DProcessor(object):
     def write(self, path_to_write, matrix, additional_matrix=None):
         assert np.ndim(matrix) == 3
         assert matrix.shape[2] == 3 and matrix.shape[1] == self.points_amount
-        
+
         if additional_matrix == None:
-            # define last two columns in the matrix of coordinates with zeros 
+            # define last two columns in the matrix of coordinates with zeros
             additional_matrix = np.zeros(dtype="float32", shape=(matrix.shape[0], self.points_amount, 2))
-            
+
         writer = c3d.Writer()
         # frames - generator of tuples (coord_matrix,  analog)
-        frames = ((np.concatenate((matrix[i]*-1, additional_matrix[i]), axis=1), np.array([[]]))\
+        frames = ((np.concatenate((matrix[i] * -1, additional_matrix[i]), axis=1), np.array([[]]))
                   for i in range(len(matrix)))
         writer.add_frames(frames)
-        
+
         with open(path_to_write, 'wb') as h:
             writer.write(h)
-            
+
     """
     Beautification:
         Now a little more details. Most of the C3D files have a problem,
         where some of their points coordinates go to zero and then back to the
         normal coordinates. It's caused by the fact, that that point was not seen
-        by at least to cameras at that moment. 
+        by at least to cameras at that moment.
         This is here to fix it.
     """
-    
-    def set_frames(self, frames):
-        self.frames = frames
-    
-    def clean(self):
-        assert self.frames != None
+
+    def clean(self, frames):
         return self.smooth(self.add_extra_points(self.frames))
 
     # smooth points trajectory - for cases when point completely disappears
     # fill in with data from previous frame
     # TODO rewrite smooth function (include extrapolating)
+
+    @staticmethod
+    def find_zero_sections(frames):
+        frames = np.transpose(frames, [1, 0, 2])
+        s = []
+        for points in frames:
+            zeros = np.where(points == 0)[0]
+            zeros = np.array([zeros[i] for i in range(0, len(zeros), 3)])
+            sections = []
+            if zeros.shape[0] != 0:
+                start = zeros[0]
+                for i in range(len(zeros) - 1):
+                    if zeros[i + 1] - zeros[i] != 1:
+                        sections.append((start, zeros[i] + 1))
+                        start = zeros[i + 1]
+                sections.append((start, zeros[-1] + 1))
+            s.append(sections)
+        return np.array(s)
+
+    def extrapolate_all(self, frames, sections, n=20):
+
+        assert frames.shape[1] == sections.shape[0]
+
+        not_neg = lambda x: 0 if x < 0 else x
+        not_max = lambda x, y: y if x > y else x
+
+        frames = np.transpose(frames, [1, 0, 2])
+
+        for frame_idx in range(len(frames)):
+            for section in sections[frame_idx]:
+                edge_dots = (frames[frame_idx][section[0] - 1], frames[frame_idx][section[frame_idx]])
+
+                our_stuff = frames[frame_idx][not_neg(section[0] - n):not_max(section[frame_idx] + n,
+                                                                              frames[frame_idx].shape[0])]
+
+                edge_pos = (np.where(our_stuff == edge_dots[0])[0][0], np.where(our_stuff == edge_dots[1])[0][0])
+
+                f = np.array(list(filter(lambda x: np.sum(x) != 0, our_stuff[:edge_pos[0] + 1])))
+                s = np.array(list(filter(lambda x: np.sum(x) != 0, our_stuff[edge_pos[1]:])))
+
+                slice_ = np.concatenate((f, s))
+
+                zeros_start = edge_pos[0] + 1
+                zeros_end = edge_pos[0] + section[1] - section[0]
+
+                extrapolated = self.extrapolate(slice_, (zeros_start, zeros_end))
+
+                frames[frame_idx][zeros_start:zeros_end] = extrapolated
+
+        return frames
+
     @staticmethod
     def smooth(frames, verbose=False):
         zero_points = 0
-        
+
         for frame_index, frame in enumerate(frames):
             for point_index, point in enumerate(frame):
                 if point[0] == point[1] == point[2] == 0:
-                    frames[frame_index][point_index] = frames[frame_index-1][point_index]
+                    frames[frame_index][point_index] = frames[frame_index - 1][point_index]
                     zero_points += 1
 
         if verbose:
@@ -108,10 +154,10 @@ class C3DProcessor(object):
         funcs = []
         for m in range(3):
             column = frame[:, m]
-            p = polynomial(poly_coef(indexes,column))
+            p = polynomial(poly_coef(indexes, column))
             funcs.append(p)
 
-        return np.array([get_values(funcs[0]), get_values(funcs[1]), get_values(funcs[2])])
+        return np.array([get_values(funcs[0]), get_values(funcs[1]), get_values(funcs[2])]).reshape(-1, 3)
 
 
 class MediaProcessor(object):
@@ -120,6 +166,7 @@ class MediaProcessor(object):
     :Get sound from training videos
     :Sound processing
     """
+
     @staticmethod
     def get_wav_from_vid(vid_path, save_dir="audio/"):
         """
@@ -127,9 +174,9 @@ class MediaProcessor(object):
         save_dir = directory to save results to
         """
         name = vid_path.split("/")[-1].split(".")[0]
-        command = "ffmpeg -i {0} -ab 160k -ac 2 -ar 44100 -vn {1}".format(vid_path, save_dir+name+".wav")
+        command = "ffmpeg -i {0} -ab 160k -ac 2 -ar 44100 -vn {1}".format(vid_path, save_dir + name + ".wav")
         subprocess.call(command, shell=True)
-        return save_dir+name+".wav"
+        return save_dir + name + ".wav"
 
     @staticmethod
     def get_sound_from_wav(wav_path, split_second=60, sr=44100):
@@ -138,21 +185,20 @@ class MediaProcessor(object):
         split_second = amount of sound blocks in one second
         sr = sample rate of recording
         """
-        rec, sr = librosa.load(wav_path, sr=sr)
-        pows_in_split = int(sr/split_second)
-        pieces = np.array([rec[i:i+pows_in_split] for i in range(0, len(rec)-pows_in_split, pows_in_split)])
+        rec, sr = load(wav_path, sr=sr)
+        pows_in_split = int(sr / split_second)
+        pieces = np.array([rec[i:i + pows_in_split] for i in range(0, len(rec) - pows_in_split, pows_in_split)])
         return pieces
 
-    def all_videos_to_wav(self, vid_dir="videos/", save_dir="audio"):
+    def all_videos_to_wav(self, vid_dir="videos/", save_dir="audio/"):
         """
         Translate all videos in directory to wav
         """
         for file in os.listdir(vid_dir):
-            self.get_sound_from_vid(vid_dir+file, "audio/")
+            self.get_sound_from_vid(vid_dir + file, save_dir)
 
     @staticmethod
     def get_spectrogram(y, sr=43680):
-        # TODO: ??
         S = melspectrogram(y, sr=sr, n_mels=200)
         log_S = logamplitude(S, ref_power=np.max)
         return log_S
@@ -166,6 +212,6 @@ class MediaProcessor(object):
         """
         spectrs = []
         for ind, mus in enumerate(music):
-            for i in range(0, len(music)-block_size, 1):
-                spectrs.append(self.get_spectrogram(mus[i:i+block_size].reshape(-1), sr).T) 
+            for i in range(0, len(music) - block_size, 1):
+                spectrs.append(self.get_spectrogram(mus[i:i + block_size].reshape(-1), sr).T)
         return spectrs

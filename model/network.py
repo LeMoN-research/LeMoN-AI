@@ -9,7 +9,7 @@ START_POSITION_SHAPE = (None, 38, 3)
 SHIFT_SHAPE = (None, 19, 38*3)
 
 
-class LeMoN_AI(object):
+class LeMoN(object):
 
     def __init__(self, trainable=True, prod=False):
         input_music_var = T.tensor3("Music input")
@@ -44,7 +44,6 @@ class LeMoN_AI(object):
         position_conv = lasagne.layers.batch_norm(position_conv)
         position_pool = lasagne.layers.GlobalPoolLayer(position_conv, pool_function=T.max, name="Gpool")
         print("Position pool: ", position_pool.output_shape)
-
 
         lstm_music = lasagne.layers.LSTMLayer(music_conv, 512, only_return_final=True, name="Music LSTM")
         lstm_music = lasagne.layers.batch_norm(lstm_music)

@@ -68,7 +68,7 @@ class Skeleton(object):
     # - of joints from each other
     def update_dists(self, frame):
         centers = self.update_centers(frame)
-        group_dists = np.array([self.dists_from_center(centers[i], make_group(self.all_groups_labels[i], frame))\
+        group_dists = np.array([self.dists_from_center(centers[i], make_group(self.all_groups_labels[i], frame))
                                 for i in range(len(centers))])
         
         joint_dists = np.array(map(self.dist, map(lambda x: make_group(x, frame), self.all_joints)))

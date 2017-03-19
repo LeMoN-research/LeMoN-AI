@@ -1,5 +1,5 @@
 import numpy as np
-from DataProcessing import positions_to_moves
+from processing import positions_to_moves
 
 
 def get_data(npy_path):
@@ -8,7 +8,7 @@ def get_data(npy_path):
         np.array([np.array([y[1] for y in x]) for x in data_matrix])
 
 
-def iterate_minibatches(points, music, batch_size=100, block_size=20):
+def iterate_minibatches(points, batch_size=100, block_size=20):
     blocks_left = [int(p.shape[0]/block_size) for p in points]
     blocks_total = blocks_left
     moves = np.array([positions_to_moves(x) for x in points])
