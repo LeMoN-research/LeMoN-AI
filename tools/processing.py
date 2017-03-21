@@ -71,6 +71,7 @@ class C3DProcessor(object):
     @staticmethod
     def find_zero_sections(frames):
         frames = np.transpose(frames, [1, 0, 2])
+
         s = []
         for points in frames:
             zeros = np.where(points == 0)[0]
@@ -91,32 +92,39 @@ class C3DProcessor(object):
         assert frames.shape[1] == sections.shape[0]
 
         not_neg = lambda x: 0 if x < 0 else x
-        not_max = lambda x, y: y if x > y else x
+        not_max = lambda x, y: y - 1 if x >= y else x
 
         frames = np.transpose(frames, [1, 0, 2])
 
         for frame_idx in range(len(frames)):
             for section in sections[frame_idx]:
-                edge_dots = (frames[frame_idx][section[0] - 1], frames[frame_idx][section[frame_idx]])
 
-                our_stuff = frames[frame_idx][not_neg(section[0] - n):not_max(section[frame_idx] + n,
+                edge_dots = (frames[frame_idx][section[0] - 1],
+                             frames[frame_idx][not_max(section[1], frames[frame_idx].shape[0])])
+
+                our_stuff = frames[frame_idx][not_neg(section[0] - n):not_max(section[1] + n,
                                                                               frames[frame_idx].shape[0])]
 
-                edge_pos = (np.where(our_stuff == edge_dots[0])[0][0], np.where(our_stuff == edge_dots[1])[0][0])
+                if np.sum(edge_dots[1]) != 0:
+                    edge_pos = (np.where(our_stuff == edge_dots[0])[0][0], np.where(our_stuff == edge_dots[1])[0][0])
 
-                f = np.array(list(filter(lambda x: np.sum(x) != 0, our_stuff[:edge_pos[0] + 1])))
-                s = np.array(list(filter(lambda x: np.sum(x) != 0, our_stuff[edge_pos[1]:])))
+                    f = np.array(list(filter(lambda x: np.sum(x) != 0, our_stuff[:edge_pos[0] + 1])))
+                    s = np.array(list(filter(lambda x: np.sum(x) != 0, our_stuff[edge_pos[1]:])))
 
-                slice_ = np.concatenate((f, s))
+                    slice_ = np.concatenate((f, s))
 
-                zeros_start = edge_pos[0] + 1
-                zeros_end = edge_pos[0] + section[1] - section[0]
+                    zeros_start = edge_pos[0] + 1
+                    zeros_end = edge_pos[0] + (section[1] - section[0]) + 1
+                else:
+                    slice_ = np.array(list(filter(lambda x: np.sum(x) != 0,
+                                                  frames[frame_idx][not_neg(section[0] - n):])))
+                    zeros_start = slice_.shape[0]
+                    zeros_end = zeros_start + (section[1] - section[0])
 
                 extrapolated = self.extrapolate(slice_, (zeros_start, zeros_end))
 
-                frames[frame_idx][zeros_start:zeros_end] = extrapolated
-
-        return frames
+                frames[frame_idx][section[0]:section[1]] = extrapolated
+        return frames.transpose([1, 0, 2])
 
     @staticmethod
     def smooth(frames, verbose=False):
@@ -129,7 +137,7 @@ class C3DProcessor(object):
                     zero_points += 1
 
         if verbose:
-            print zero_points
+            print(zero_points)
 
         return frames
 
@@ -139,7 +147,9 @@ class C3DProcessor(object):
         return new_frames
 
     @staticmethod
-    def extrapolate(frame, (i, j), deg=10):
+    def extrapolate(frame, idx, deg=10):
+        i = idx[0];
+        j = idx[1]
         assert frame.shape[1] == 3 and np.ndim(frame) == 2
         # get polynomial coefficients
         poly_coef = lambda a, b: np.polyfit(a, b, deg)
@@ -157,8 +167,9 @@ class C3DProcessor(object):
             p = polynomial(poly_coef(indexes, column))
             funcs.append(p)
 
-        return np.array([get_values(funcs[0]), get_values(funcs[1]), get_values(funcs[2])]).reshape(-1, 3)
+        dots = np.array([get_values(funcs[0]), get_values(funcs[1]), get_values(funcs[2])])
 
+        return np.array([[dots[0, x], dots[1, x], dots[2, x]] for x in range(len(dots[0]))])
 
 class MediaProcessor(object):
     """
