@@ -66,13 +66,17 @@ class C3DProcessor(object):
 
     # smooth points trajectory - for cases when point completely disappears
     # fill in with data from previous frame
-    # TODO rewrite smooth function (include extrapolating)
 
     @staticmethod
     def find_zero_sections(frames):
+        """
+        Find zero sections in points trajectories.
+        :param frames: original c3d frames
+        :return: coordinates of zero sections for every point
+        """
         frames = np.transpose(frames, [1, 0, 2])
 
-        s = []
+        all_points = []
         for points in frames:
             zeros = np.where(points == 0)[0]
             zeros = np.array([zeros[i] for i in range(0, len(zeros), 3)])
@@ -84,11 +88,17 @@ class C3DProcessor(object):
                         sections.append((start, zeros[i] + 1))
                         start = zeros[i + 1]
                 sections.append((start, zeros[-1] + 1))
-            s.append(sections)
-        return np.array(s)
+            all_points.append(sections)
+        return np.array(all_points)
 
-    def extrapolate_all(self, frames, sections, n=20):
-
+    def smooth(self, frames, sections, n=20):
+        """
+        Fill all zero sections with extrapolated numbers.
+        :param frames: original c3d frames
+        :param sections: coordinates of zero sections for every point
+        :param n: number of points left and right of the section to fit into extrapolate function
+        :return: filled version
+        """
         assert frames.shape[1] == sections.shape[0]
 
         not_neg = lambda x: 0 if x < 0 else x
@@ -98,20 +108,20 @@ class C3DProcessor(object):
 
         for frame_idx in range(len(frames)):
             for section in sections[frame_idx]:
-
+                # values on the edges of zero section (to find coordinates in slice later)
                 edge_dots = (frames[frame_idx][section[0] - 1],
                              frames[frame_idx][not_max(section[1], frames[frame_idx].shape[0])])
-
+                # our slice that we would want to fill
                 our_stuff = frames[frame_idx][not_neg(section[0] - n):not_max(section[1] + n,
                                                                               frames[frame_idx].shape[0])]
-
+                # if zero section is not in the end
                 if np.sum(edge_dots[1]) != 0:
                     edge_pos = (np.where(our_stuff == edge_dots[0])[0][0], np.where(our_stuff == edge_dots[1])[0][0])
 
-                    f = np.array(list(filter(lambda x: np.sum(x) != 0, our_stuff[:edge_pos[0] + 1])))
-                    s = np.array(list(filter(lambda x: np.sum(x) != 0, our_stuff[edge_pos[1]:])))
+                    before_section = np.array(list(filter(lambda x: np.sum(x) != 0, our_stuff[:edge_pos[0] + 1])))
+                    after_section = np.array(list(filter(lambda x: np.sum(x) != 0, our_stuff[edge_pos[1]:])))
 
-                    slice_ = np.concatenate((f, s))
+                    slice_ = np.concatenate((before_section, after_section))
 
                     zeros_start = edge_pos[0] + 1
                     zeros_end = edge_pos[0] + (section[1] - section[0]) + 1
@@ -125,21 +135,6 @@ class C3DProcessor(object):
 
                 frames[frame_idx][section[0]:section[1]] = extrapolated
         return frames.transpose([1, 0, 2])
-
-    @staticmethod
-    def smooth(frames, verbose=False):
-        zero_points = 0
-
-        for frame_index, frame in enumerate(frames):
-            for point_index, point in enumerate(frame):
-                if point[0] == point[1] == point[2] == 0:
-                    frames[frame_index][point_index] = frames[frame_index - 1][point_index]
-                    zero_points += 1
-
-        if verbose:
-            print(zero_points)
-
-        return frames
 
     def add_extra_points(self, frames):
         extra_points = [self.group_center(self.make_group([11, 18], frame)) for frame in frames]
